@@ -12,10 +12,10 @@
 
 	var guys = [];
 
-	var params = {
+	var config = {
 		 spriteWidth : 40
 		,spriteHeight : 60
-		,spriteCount : 10
+		,spriteCount : 80
 		,maxVelocity : 4
 	};
 
@@ -23,6 +23,9 @@
 	animate();
 
 	function init() {
+		worldSize.width = window.innerWidth;
+		worldSize.height = window.innerHeight;
+
 		camera = new THREE.PerspectiveCamera( 75, window.innerWidth / window.innerHeight, 1, 10000 );
 		camera.position.z = 1000;
 
@@ -36,13 +39,13 @@
 
 		geometry = new THREE.Geometry();
 
-		geometry.vertices.push( new THREE.Vector3( 0,  params.spriteWidth / 2, 0 ) );
-		geometry.vertices.push( new THREE.Vector3( 0, -(params.spriteWidth / 2), 0 ) );
-		geometry.vertices.push( new THREE.Vector3(  params.spriteHeight, 0, 0 ) );
+		geometry.vertices.push( new THREE.Vector3( 0,  config.spriteWidth / 2, 0 ) );
+		geometry.vertices.push( new THREE.Vector3( 0, -(config.spriteWidth / 2), 0 ) );
+		geometry.vertices.push( new THREE.Vector3(  config.spriteHeight, 0, 0 ) );
 		geometry.faces.push( new THREE.Face3( 0, 1, 2 ) );
 		geometry.computeBoundingSphere();
 
-		for (var i = 0; i < params.spriteCount; i++) {
+		for (var i = 0; i < config.spriteCount; i++) {
 			velocity = getInitialVelocity();
 			mesh = new THREE.Mesh( geometry, material );
 			mesh.position.x = (Math.random() * worldSize.width * 2 - worldSize.width);
@@ -58,8 +61,6 @@
 
 		// renderer = new THREE.CanvasRenderer();
 		renderer = new THREE.WebGLRenderer();
-		worldSize.width = window.innerWidth;
-		worldSize.height = window.innerHeight;
 		renderer.setSize(worldSize.width, worldSize.height);
 
 		document.body.appendChild( renderer.domElement );
@@ -76,8 +77,19 @@
 		for (var i = 0; i < guys.length; i++) {
 			var guy = guys[i];
 			var mesh = guy.mesh;
-			var velocity = guy.velocity;
-			mesh.position.add(velocity);
+
+			var l = guy.velocity.length();
+			// find the nearest guy (brute force)
+			for (var j = 0; j < guys.length; j++) {
+				var distanceTo = guy.mesh.position.distanceTo(guys[j].mesh.position);
+				if (distanceTo < 100) {
+					// add the two guys' velocity
+					guy.velocity.add(guys[j].velocity);
+				}
+			}
+
+			guy.velocity.setLength(l);
+			mesh.position.add(guy.velocity);
 
 			// keep it within the world
 			mesh.position.x = mesh.position.x < -(worldSize.width) ? worldSize.width : mesh.position.x;
@@ -91,7 +103,7 @@
 
 	// returns THREE.Vector3;
 	function getInitialVelocity() {
-		return new THREE.Vector3(params.maxVelocity * 2 * Math.random() - params.maxVelocity, params.maxVelocity * 2 * Math.random() - params.maxVelocity, 0);
+		return new THREE.Vector3(config.maxVelocity * 2 * Math.random() - config.maxVelocity, config.maxVelocity * 2 * Math.random() - config.maxVelocity, 0);
 	}
 
 	// play/pause
