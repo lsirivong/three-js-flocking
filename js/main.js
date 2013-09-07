@@ -15,7 +15,7 @@
 	var config = {
 		 spriteWidth : 40
 		,spriteHeight : 60
-		,spriteCount : 80
+		,spriteCount : 100
 		,maxVelocity : 4
 	};
 
@@ -52,7 +52,7 @@
 			mesh.position.y = (Math.random() * worldSize.height * 2 - worldSize.height);
 			guys.push({
 				 mesh: mesh
-				,velocity: velocity
+				,velocity: velocity.setLength(4)
 			});
 
 			scene.add(mesh);
@@ -81,10 +81,24 @@
 			var l = guy.velocity.length();
 			// find the nearest guy (brute force)
 			for (var j = 0; j < guys.length; j++) {
+				if (j === i) {
+					// don't compare to self
+					continue;
+				}
 				var distanceTo = guy.mesh.position.distanceTo(guys[j].mesh.position);
-				if (distanceTo < 100) {
-					// add the two guys' velocity
-					guy.velocity.add(guys[j].velocity);
+				if (distanceTo < 140) {
+					if (distanceTo < 80) {
+						// TODO: if too close, move apart (subtract positions)
+						// add the two guys' velocity
+						// var 
+						// guy.velocity.add()
+						var diff = mesh.position.clone();
+						diff.sub(guys[j].mesh.position);
+						guy.velocity.add(diff);
+					} else {
+						// add something so that they don't change their velocity too much
+						guy.velocity.add(guys[j].velocity);
+					}
 				}
 			}
 
