@@ -15,7 +15,7 @@
 	var config = {
 		 spriteWidth : 40
 		,spriteHeight : 60
-		,spriteCount : 100
+		,spriteCount : 140
 		,maxVelocity : 4
 	};
 
@@ -54,6 +54,7 @@
 				 mesh: mesh
 				,velocity: velocity.setLength(4)
 			});
+			mesh.rotation.z = (new THREE.Vector3(1, 0, 0)).angleTo(velocity) * (velocity.y < 0 ? -1 : 1) ;
 
 			scene.add(mesh);
 		};
@@ -103,7 +104,9 @@
 			}
 
 			guy.velocity.setLength(l);
+
 			mesh.position.add(guy.velocity);
+			mesh.rotation.z = (new THREE.Vector3(1, 0, 0)).angleTo(guy.velocity)  * (guy.velocity.y < 0 ? -1 : 1);
 
 			// keep it within the world
 			mesh.position.x = mesh.position.x < -(worldSize.width) ? worldSize.width : mesh.position.x;
