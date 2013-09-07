@@ -12,7 +12,12 @@
 
 	var guys = [];
 
-	var guyCount = 10;
+	var params = {
+		 spriteWidth : 40
+		,spriteHeight : 60
+		,spriteCount : 10
+		,maxVelocity : 4
+	};
 
 	init();
 	animate();
@@ -31,15 +36,14 @@
 
 		geometry = new THREE.Geometry();
 
-		geometry.vertices.push( new THREE.Vector3( 0,  20, 0 ) );
-		geometry.vertices.push( new THREE.Vector3( 0, -20, 0 ) );
-		geometry.vertices.push( new THREE.Vector3(  60, 0, 0 ) );
+		geometry.vertices.push( new THREE.Vector3( 0,  params.spriteWidth / 2, 0 ) );
+		geometry.vertices.push( new THREE.Vector3( 0, -(params.spriteWidth / 2), 0 ) );
+		geometry.vertices.push( new THREE.Vector3(  params.spriteHeight, 0, 0 ) );
 		geometry.faces.push( new THREE.Face3( 0, 1, 2 ) );
 		geometry.computeBoundingSphere();
 
-
-		for (var i = 0; i < guyCount; i++) {
-			velocity = new THREE.Vector3(6 * Math.random() - 3, 6 * Math.random() - 3, 0);
+		for (var i = 0; i < params.spriteCount; i++) {
+			velocity = getInitialVelocity();
 			mesh = new THREE.Mesh( geometry, material );
 			mesh.position.x = (Math.random() * worldSize.width * 2 - worldSize.width);
 			mesh.position.y = (Math.random() * worldSize.height * 2 - worldSize.height);
@@ -83,6 +87,11 @@
 		};
 
 		renderer.render( scene, camera );
+	}
+
+	// returns THREE.Vector3;
+	function getInitialVelocity() {
+		return new THREE.Vector3(params.maxVelocity * 2 * Math.random() - params.maxVelocity, params.maxVelocity * 2 * Math.random() - params.maxVelocity, 0);
 	}
 
 	// play/pause
