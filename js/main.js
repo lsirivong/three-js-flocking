@@ -12,11 +12,16 @@
 
 	var guys = [];
 
+	var zAxis = new THREE.Vector3(0, 0, 1);
+
 	var config = {
 		 spriteWidth : 40
 		,spriteHeight : 60
-		,spriteCount : 140
+		,spriteCount : 50
+		,mergeDistance : 140
+		,repelDistance : 80
 		,maxVelocity : 4
+		,maxDeltaAngle : 5 * Math.PI / 180
 	};
 
 	init();
@@ -80,19 +85,17 @@
 			var mesh = guy.mesh;
 
 			var l = guy.velocity.length();
+			var oldVelocity = guy.velocity.clone();
+
 			// find the nearest guy (brute force)
-			for (var j = 0; j < guys.length; j++) {
+			for (var j = i + 1; j < guys.length; j++) {
 				if (j === i) {
 					// don't compare to self
 					continue;
 				}
 				var distanceTo = guy.mesh.position.distanceTo(guys[j].mesh.position);
-				if (distanceTo < 140) {
-					if (distanceTo < 80) {
-						// TODO: if too close, move apart (subtract positions)
-						// add the two guys' velocity
-						// var 
-						// guy.velocity.add()
+				if (distanceTo < config.mergeDistance) {
+					if (distanceTo < config.repelDistance) {
 						var diff = mesh.position.clone();
 						diff.sub(guys[j].mesh.position);
 						guy.velocity.add(diff);
@@ -103,9 +106,18 @@
 				}
 			}
 
+			if (guy.velocity.angleTo(oldVelocity) > config.maxDeltaAngle) {
+				var test = guy.velocity.clone().applyAxisAngle(zAxis, oldVelocity.angleTo(new THREE.Vector3(1, 0, 0)));
+				var modifier = (test.y < 0) ? -1 : 1;
+
+				oldVelocity.applyAxisAngle(zAxis, modifier * config.maxDeltaAngle); // need to do + or - ...
+				guy.velocity.copy(oldVelocity);
+			}
+
 			guy.velocity.setLength(l);
 
 			mesh.position.add(guy.velocity);
+
 			mesh.rotation.z = (new THREE.Vector3(1, 0, 0)).angleTo(guy.velocity)  * (guy.velocity.y < 0 ? -1 : 1);
 
 			// keep it within the world
