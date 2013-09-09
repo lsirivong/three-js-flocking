@@ -43,7 +43,7 @@
 	animate();
 
 	window.setInterval(function() {
-		if (frames < 30) {
+		if (!stopped && frames < 30) {
 			console.log('framerate below 30', frames);
 		};
 		frames = 0;
@@ -175,11 +175,11 @@
 
 									if (distanceTo < config.repelDistance) {
 										lm = lineRepelMaterial;
-										// guy.velocity.add(diff);
+										guy.velocity.add(diff);
 										hasObstacle = true;
 									} else {
 										lm = lineMaterial;
-										// guy.velocity.add(diff.negate()); // go to where the otherguy is
+										// guy.velocity.add(diff.negate().normalize()); // go to where the otherguy is
 										guy.velocity.add(otherGuy.velocity); // move the same way as the otherguy
 									}
 
