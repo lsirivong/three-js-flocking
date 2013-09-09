@@ -120,9 +120,6 @@
 			var oldVelocity = guy.velocity.clone();
 
 
-			// find the nearest guy (brute force)
-			var nearestGuyDistance = null;
-			var nearestGuy = null;
 			var hasObstacle = false;
 			for (var j = 0; j < guys.length; j++) {
 				if (j === i) {
@@ -134,63 +131,31 @@
 				var diff = new THREE.Vector3().subVectors(mesh.position, otherGuy.mesh.position);
 
 				if (distanceTo < config.mergeDistance && guy.velocity.angleTo(diff.clone().negate()) < (Math.PI / 3)) { // possible neighbors are within 120° in front of self
-					if (!nearestGuy || (nearestGuy && nearestGuyDistance < distanceTo)) {
-						nearestGuyDistance = distanceTo;
-						nearestGuy = otherGuy;
-					};
-					continue;
-
-					// var lm;
-
-					// if (distanceTo < config.repelDistance) {
-					// 	lm = lineRepelMaterial;
-					// 	guy.velocity.add(diff);
-					// 	hasObstacle = true;
-					// } else {
-					// 	lm = lineMaterial;
-					// 	// guy.velocity.add(diff.negate()); // go to where the otherguy is
-					// 	guy.velocity.add(otherGuy.velocity); // move the same way as the otherguy
-					// }
-
-					// if (config.drawNeighborLines) {
-					// 	var lg = new THREE.Geometry();
-					// 	lg.vertices.push(mesh.position);
-					// 	lg.vertices.push(otherGuy.mesh.position);
-					// 	neighborLines.push(new THREE.Line(lg, lm));
-
-					// 	lgHeadMesh = new THREE.Mesh(lgHead, lineHeadMaterial);
-					// 	lgHeadMesh.position.x = otherGuy.mesh.position.x;
-					// 	lgHeadMesh.position.y = otherGuy.mesh.position.y;
-					// 	neighborLines.push(lgHeadMesh);
-					// };
-				}
-			}
-
 					var lm;
 
-					if (nearestGuy) {
-					if (nearestGuyDistance < config.repelDistance) {
+					if (distanceTo < config.repelDistance) {
 						lm = lineRepelMaterial;
 						guy.velocity.add(diff);
 						hasObstacle = true;
 					} else {
 						lm = lineMaterial;
 						// guy.velocity.add(diff.negate()); // go to where the otherguy is
-						guy.velocity.add(nearestGuy.velocity); // move the same way as the nearestGuy
+						guy.velocity.add(otherGuy.velocity); // move the same way as the otherguy
 					}
 
 					if (config.drawNeighborLines) {
 						var lg = new THREE.Geometry();
 						lg.vertices.push(mesh.position);
-						lg.vertices.push(nearestGuy.mesh.position);
+						lg.vertices.push(otherGuy.mesh.position);
 						neighborLines.push(new THREE.Line(lg, lm));
 
 						lgHeadMesh = new THREE.Mesh(lgHead, lineHeadMaterial);
-						lgHeadMesh.position.x = nearestGuy.mesh.position.x;
-						lgHeadMesh.position.y = nearestGuy.mesh.position.y;
+						lgHeadMesh.position.x = otherGuy.mesh.position.x;
+						lgHeadMesh.position.y = otherGuy.mesh.position.y;
 						neighborLines.push(lgHeadMesh);
 					};
-					};
+				}
+			}
 
 			if (guy.velocity.angleTo(oldVelocity) > config.maxDeltaAngle) {
 				var test = guy.velocity.clone().applyAxisAngle(zAxis, oldVelocity.angleTo(new THREE.Vector3(1, 0, 0)));
