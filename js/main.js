@@ -186,10 +186,6 @@
 			guy.mesh.position.add(guy.velocity.clone().multiplyScalar(guy.speed));
 			guy.neighborBlock.position.x = guy.mesh.position.x;
 			guy.neighborBlock.position.y = guy.mesh.position.y;
-			// mesh.position.x = mesh.position.x < -(worldSize.width) ? worldSize.width : mesh.position.x;
-			// mesh.position.x = worldSize.width < mesh.position.x ? -(worldSize.width) : mesh.position.x;
-			// mesh.position.y = mesh.position.y < -(worldSize.height) ? worldSize.height : mesh.position.y;
-			// mesh.position.y = worldSize.height < mesh.position.y ? -(worldSize.height) : mesh.position.y;
 		};
 
 
