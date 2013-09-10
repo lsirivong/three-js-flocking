@@ -1,6 +1,6 @@
 // (function () {
 	var camera, scene, renderer;
-	var geometry, material;
+	var geometry, material, leaderMaterial;
 
 	var worldSize = {width: null, height: null};
 	var gridSize = {width: null, height: null};
@@ -10,6 +10,8 @@
 	var stopped = false;
 
 	var velocity;
+
+	var material1, material2, material3, material4;
 
 	var guys = [];
 	var neighborLines = [];
@@ -25,18 +27,25 @@
 	var frames = 0;
 
 	var config = {
-		 spriteWidth : 10
-		,spriteHeight : 15
-		,spriteCount : 300
-		,mergeDistance : 60
-		,repelDistance : 30
+		 spriteWidth : 5
+		,spriteHeight : 10
+		,spriteCount : 400
+		,mergeDistance : 120
+		,repelDistance : 12
+		,wallRepelDistance : 300
+		,wallRepelScale : 0.25
 		,minSpeed : 3
-		,maxSpeed : 12
-		,maxDeltaAngle : 12 * Math.PI / 180
+		,maxSpeed : 4
+		,maxDeltaAngle : 90 * Math.PI / 180
 		,color: 0x000000
+		,leaderColor: 0xf50000
+		// ,leaderColor: 0xf5ec0c // yellow
 		,drawNeighborLines: false
-		,gridColCount : 8
-		,gridRowCount : 8
+		,gridColCount : 16
+		,gridRowCount : 16
+		,avoidWalls : false
+		,reflectOffWalls : false
+		,rangeOfVision : (Math.PI / 2) // half of range of vision
 	};
 
 	init();
@@ -62,6 +71,14 @@
 		scene = new THREE.Scene();
 
 		material = new THREE.MeshBasicMaterial( { color: config.color } );
+
+		material1 = new THREE.MeshBasicMaterial( { color: 0xF01EB5 } );
+		material2 = new THREE.MeshBasicMaterial( { color: 0x5ED80C } );
+		material3 = new THREE.MeshBasicMaterial( { color: 0x348BE9 } );
+		material4 = new THREE.MeshBasicMaterial( { color: 0xF5AF1A } );
+
+
+		leaderMaterial = new THREE.MeshBasicMaterial( { color: config.leaderColor } );
 
 		geometry = new THREE.Geometry();
 
@@ -94,7 +111,8 @@
 
 		for (var i = 0; i < config.spriteCount; i++) {
 			velocity = getInitialVelocity();
-			mesh = new THREE.Mesh( geometry, material );
+			var isFollower = i % 50 !== 0;
+			mesh = new THREE.Mesh( geometry, isFollower ? material : leaderMaterial );
 			mesh.position.x = (Math.random() * worldSize.width * 2 - worldSize.width);
 			mesh.position.y = (Math.random() * worldSize.height * 2 - worldSize.height);
 
@@ -111,9 +129,37 @@
 				,mesh: mesh
 				,neighborBlock: neighborBlock
 				,velocity: velocity.normalize()
-				,speed: 8
+				,speed: config.maxSpeed
 				,gridPos: gridPos
+				,isFollower: isFollower
 			});
+
+
+			// switch(gridPos.x % 2) {
+			// 	case 0:
+			// 		switch(gridPos.y % 2) {
+			// 			case 0:
+			// 			mesh.material = material1;
+			// 			break;
+
+			// 			default:
+			// 			mesh.material = material2;
+			// 		}
+			// 	break;
+
+			// 	default:
+			// 		switch(gridPos.y % 2) {
+			// 			case 0:
+			// 			mesh.material = material3;
+			// 			break;
+
+			// 			default:
+			// 			mesh.material = material4;
+			// 		}
+			// }
+
+
+
 			grid[gridPos.x][gridPos.y].push(guys[guys.length - 1]);
 			mesh.rotation.z = (new THREE.Vector3(1, 0, 0)).angleTo(velocity) * (velocity.y < 0 ? -1 : 1) ;
 
@@ -122,8 +168,8 @@
 		};
 
 
-		renderer = new THREE.CanvasRenderer();
-		// renderer = new THREE.WebGLRenderer();
+		// renderer = new THREE.CanvasRenderer();
+		renderer = new THREE.WebGLRenderer();
 		renderer.setSize(worldSize.width, worldSize.height);
 
 		document.body.appendChild( renderer.domElement );
@@ -152,107 +198,210 @@
 
 			var hasObstacle = false;
 
-			for (var m = -1; m < 1; m++) {
-				var colIndex = guy.gridPos.x + m;
-				if (0 <= colIndex && colIndex < grid.length) {
-					for (var n = -1; n < 1; n++) {
-						var rowIndex = guy.gridPos.y + n;
-						if (0 <= rowIndex && rowIndex < grid[colIndex].length) {
-							var otherGuys = grid[colIndex][rowIndex];
+			if (guy.isFollower) {
+				var hasLeader = false;
+				for (var m = -1; m <= 1; m++) {
+					var colIndex = guy.gridPos.x + m;
+					if (0 <= colIndex && colIndex < grid.length) {
+						for (var n = -1; n <= 1; n++) {
+							var rowIndex = guy.gridPos.y + n;
+							if (0 <= rowIndex && rowIndex < grid[colIndex].length) {
+								var otherGuys = grid[colIndex][rowIndex];
 
-							for (var j = 0; j < otherGuys.length; j++) {
-								var otherGuy = otherGuys[j];
-								if (guy.id === otherGuy.id) {
-									// don't compare to self
-									continue;
-								}
-
-								var distanceTo = guy.mesh.position.distanceTo(otherGuy.mesh.position);
-								var diff = new THREE.Vector3().subVectors(mesh.position, otherGuy.mesh.position);
-
-								if (distanceTo < config.mergeDistance && guy.velocity.angleTo(diff.clone().negate()) < (Math.PI / 3)) { // possible neighbors are within 120° in front of self
-									var lm;
-
-									if (distanceTo < config.repelDistance) {
-										lm = lineRepelMaterial;
-										guy.velocity.add(diff);
-										hasObstacle = true;
-									} else {
-										lm = lineMaterial;
-										// guy.velocity.add(diff.negate().normalize()); // go to where the otherguy is
-										guy.velocity.add(otherGuy.velocity); // move the same way as the otherguy
+								for (var j = 0; j < otherGuys.length; j++) {
+									var otherGuy = otherGuys[j];
+									if (guy.id === otherGuy.id) {
+										// don't compare to self
+										continue;
 									}
 
-									if (config.drawNeighborLines) {
-										var lg = new THREE.Geometry();
-										lg.vertices.push(mesh.position);
-										lg.vertices.push(otherGuy.mesh.position);
-										neighborLines.push(new THREE.Line(lg, lm));
+									var distanceTo = guy.mesh.position.distanceTo(otherGuy.mesh.position);
+									var diff = new THREE.Vector3().subVectors(mesh.position, otherGuy.mesh.position);
 
-										lgHeadMesh = new THREE.Mesh(lgHead, lineHeadMaterial);
-										lgHeadMesh.position.x = otherGuy.mesh.position.x;
-										lgHeadMesh.position.y = otherGuy.mesh.position.y;
-										neighborLines.push(lgHeadMesh);
-									};
+									if (distanceTo < config.mergeDistance && guy.velocity.angleTo(diff.clone().negate()) < config.rangeOfVision) { // possible neighbors are within 120° in front of self
+										var lm;
+										hasLeader = true;
+
+										if (distanceTo < config.repelDistance) {
+											lm = lineRepelMaterial;
+											guy.velocity.add(diff.normalize().multiplyScalar(0.05));
+											hasObstacle = true;
+										} else {
+											lm = lineMaterial;
+											var v = otherGuy.velocity.clone();
+											if (!otherGuy.isFollower) { v.multiplyScalar(100) };
+											guy.velocity.add(diff.negate().normalize().multiplyScalar(0.05)); // go to where the otherguy is
+											guy.velocity.add(v.multiplyScalar(2)); // move the same way as the otherguy
+											guy.velocity.normalize();
+										}
+
+										if (config.drawNeighborLines) {
+											var lg = new THREE.Geometry();
+											lg.vertices.push(mesh.position);
+											lg.vertices.push(otherGuy.mesh.position);
+											neighborLines.push(new THREE.Line(lg, lm));
+
+											lgHeadMesh = new THREE.Mesh(lgHead, lineHeadMaterial);
+											lgHeadMesh.position.x = otherGuy.mesh.position.x;
+											lgHeadMesh.position.y = otherGuy.mesh.position.y;
+											neighborLines.push(lgHeadMesh);
+										};
+									}
 								}
-							}
 
+
+								if (guy.drawNeighborLines) {
+									var lg = new THREE.Geometry();
+									lg.vertices.push(mesh.position);
+									lg.vertices.push(otherGuy.mesh.position);
+									neighborLines.push(new THREE.Line(lg, lm));
+
+									lgHeadMesh = new THREE.Mesh(lgHead, lineHeadMaterial);
+									lgHeadMesh.position.x = otherGuy.mesh.position.x;
+									lgHeadMesh.position.y = otherGuy.mesh.position.y;
+									neighborLines.push(lgHeadMesh);
+
+									otherGuy.mesh.material = material;
+								};
+							}
+						}
+					}
+				} // end for
+
+				// if (!hasLeader) {
+				// 	// no leader, slow it down
+				// 	guy.speed *= 0.5;
+				// };
+			} // if (isFollower)
+
+			clampTurnRadius(guy.velocity, oldVelocity, config.maxDeltaAngle);
+
+			if (config.avoidWalls) {
+				var distanceToVWall = worldSize.width - Math.abs(guy.mesh.position.x);
+				if (distanceToVWall < config.wallRepelDistance) {
+					var which = guy.mesh.position.x < 0 ? 'left' : 'right';
+					var yAxis = new THREE.Vector3(0, 1, 0);
+					var angleTo = yAxis.angleTo(guy.velocity);
+					var isMovingToward = guy.velocity.x > 0 ? (which === 'right') : (which === 'left');
+					if (isMovingToward) {
+						guy.speed *= 0.9;
+						// console.log('approaching ' + which, THREE.Math.radToDeg(angleTo));
+						if (angleTo > THREE.Math.PI / 2) {
+							guy.velocity.add(new THREE.Vector3((which === 'left' ? 1 : -1), 0, 0).multiplyScalar(config.wallRepelScale));
+							// guy.velocity.add(new THREE.Vector3(0, -1, 0).multiplyScalar(0.2));
+						} else {
+							guy.velocity.add(new THREE.Vector3((which === 'left' ? 1 : -1), 0, 0).multiplyScalar(config.wallRepelScale));
+							// guy.velocity.add(new THREE.Vector3(0, 1, 0).multiplyScalar(0.2));
+						}
+					}
+				}
+				var distanceToHWall = worldSize.height - Math.abs(guy.mesh.position.y);
+				if (distanceToHWall < config.wallRepelDistance) {
+					var which = guy.mesh.position.y < 0 ? 'bottom' : 'top';
+					var xAxis = new THREE.Vector3(1, 0, 0);
+					var angleTo = xAxis.angleTo(guy.velocity);
+					var isMovingToward = guy.velocity.y >= 0 ? (which === 'top') : (which === 'bottom');
+					if (isMovingToward) {
+						guy.speed *= 0.9;
+						// console.log('approaching ' + which, THREE.Math.radToDeg(angleTo));
+						if (angleTo > THREE.Math.PI / 2) {
+							guy.velocity.add(new THREE.Vector3(0, (which === 'bottom' ? 1 : -1), 0).multiplyScalar(config.wallRepelScale));
+							// guy.velocity.add(new THREE.Vector3(1, 1, 0).multiplyScalar(0.1));
+						} else {
+							guy.velocity.add(new THREE.Vector3(0, (which === 'bottom' ? 1 : -1), 0).multiplyScalar(config.wallRepelScale));
+							// guy.velocity.sub(new THREE.Vector3(1, 1, 0).multiplyScalar(0.1));
 						}
 					}
 				}
 			}
 
-			if (guy.velocity.angleTo(oldVelocity) > config.maxDeltaAngle) {
-				var test = guy.velocity.clone().applyAxisAngle(zAxis, oldVelocity.angleTo(new THREE.Vector3(1, 0, 0)));
-				var modifier = (test.y < 0) ? -1 : 1;
-
-				oldVelocity.applyAxisAngle(zAxis, modifier * config.maxDeltaAngle);
-				guy.velocity.copy(oldVelocity);
-			}
-
 			guy.velocity.normalize();
 
-			guy.speed *= (hasObstacle ? 0.8 : 1.2);
-			guy.speed = THREE.Math.clamp(guy.speed, config.minSpeed, config.maxSpeed);
-			var newPos = mesh.position.clone().add(guy.velocity.clone().multiplyScalar(guy.speed));
+			// if (guy.isFollower) {
+				guy.speed *= (hasObstacle ? 0.8 : 1.2);
+				guy.speed = THREE.Math.clamp(guy.speed, config.minSpeed, config.maxSpeed);
+			// };
 
-			mesh.rotation.z = (new THREE.Vector3(1, 0, 0)).angleTo(guy.velocity)  * (guy.velocity.y < 0 ? -1 : 1);
 
 			// keep it within the world
 
-			if (newPos.x < -(worldSize.width) || worldSize.width < newPos.x) {
-				guy.velocity.reflect(new THREE.Vector3(0, 1, 0));
-			}
+			if (config.reflectOffWalls) {
+				var newPos = mesh.position.clone().add(guy.velocity.clone().multiplyScalar(guy.speed));
 
-			if (newPos.y < -(worldSize.height) || worldSize.height < newPos.y) {
-				guy.velocity.reflect(new THREE.Vector3(1, 0, 0));
-			}
-
-			guy.mesh.position.add(guy.velocity.clone().multiplyScalar(guy.speed));
-
-			// update grid position (if necessary)
-			var oldGridPos = {x: guy.gridPos.x, y: guy.gridPos.y};
-			guy.gridPos.x = Math.floor((guy.mesh.position.x + worldSize.width) / gridSize.width);
-			guy.gridPos.y = Math.floor((guy.mesh.position.y + worldSize.height) / gridSize.height);
-
-			if (oldGridPos.x != guy.gridPos.x || oldGridPos.y != guy.gridPos.y) {
-				// find it
-				var gridCell = grid[oldGridPos.x][oldGridPos.y];
-				var indexOf = -1;
-				for (var k = 0; k < gridCell.length; k++) {
-					if (gridCell[k].id === guy.id) {
-						indexOf = k;
-					}
-				};
-
-				// remove old ref
-				if (0 <= indexOf) {
-					gridCell.splice(indexOf, 1);
+				if (newPos.x < -(worldSize.width) || worldSize.width < newPos.x) {
+					guy.velocity.reflect(new THREE.Vector3(0, 1, 0));
 				}
 
-				// add to new spot
-				grid[guy.gridPos.x][guy.gridPos.y].push(guy);
-			};
+				if (newPos.y < -(worldSize.height) || worldSize.height < newPos.y) {
+					guy.velocity.reflect(new THREE.Vector3(1, 0, 0));
+				}
+
+				guy.mesh.position.add(guy.velocity.clone().multiplyScalar(guy.speed));
+			} else {
+				var newPos = mesh.position.clone().add(guy.velocity.clone().multiplyScalar(guy.speed));
+
+				var distanceFromWall = Math.abs(newPos.x) - worldSize.width;
+				if (0 <= distanceFromWall) {
+					newPos.x = THREE.Math.clamp(-(newPos.x) - (distanceFromWall * (newPos.x < 0 ? 1 : -1)), -(worldSize.width - 1), worldSize.width - 1);
+				}
+				var distanceFromWall = Math.abs(newPos.y) - worldSize.height;
+				if (0 <= distanceFromWall) {
+					newPos.y = THREE.Math.clamp(-(newPos.y) - (distanceFromWall * (newPos.y < 0 ? 1 : -1)), -(worldSize.height - 1), worldSize.height - 1);
+				}
+
+				guy.mesh.position.copy(newPos);
+			}
+
+			mesh.rotation.z = (new THREE.Vector3(1, 0, 0)).angleTo(guy.velocity)  * (guy.velocity.y < 0 ? -1 : 1);
+
+
+			// // update grid position (if necessary)
+			// var oldGridPos = {x: guy.gridPos.x, y: guy.gridPos.y};
+			// guy.gridPos.x = Math.floor((guy.mesh.position.x + worldSize.width) / gridSize.width);
+			// guy.gridPos.y = Math.floor((guy.mesh.position.y + worldSize.height) / gridSize.height);
+
+			// if (oldGridPos.x != guy.gridPos.x || oldGridPos.y != guy.gridPos.y) {
+			// 	// find it
+			// 	var gridCell = grid[oldGridPos.x][oldGridPos.y];
+			// 	var indexOf = -1;
+			// 	for (var k = 0; k < gridCell.length; k++) {
+			// 		if (gridCell[k].id === guy.id) {
+			// 			indexOf = k;
+			// 		}
+			// 	};
+
+			// 	// remove old ref
+			// 	if (0 <= indexOf) {
+			// 		gridCell.splice(indexOf, 1);
+			// 	}
+
+			// 	// add to new spot
+			// 	grid[guy.gridPos.x][guy.gridPos.y].push(guy);
+			// };
+
+
+			// switch(guy.gridPos.x % 2) {
+			// 	case 0:
+			// 		switch(guy.gridPos.y % 2) {
+			// 			case 0:
+			// 			mesh.material = material1;
+			// 			break;
+
+			// 			default:
+			// 			mesh.material = material2;
+			// 		}
+			// 	break;
+
+			// 	default:
+			// 		switch(guy.gridPos.y % 2) {
+			// 			case 0:
+			// 			mesh.material = material3;
+			// 			break;
+
+			// 			default:
+			// 			mesh.material = material4;
+			// 		}
+			// }
 
 			guy.neighborBlock.position.x = guy.mesh.position.x;
 			guy.neighborBlock.position.y = guy.mesh.position.y;
@@ -263,7 +412,62 @@
 			scene.add(neighborLines[i]);
 		};
 
+		assignGridPos();
+
 		renderer.render( scene, camera );
+	}
+
+	// modifies velocity
+	function clampTurnRadius(velocity, originalVelocity, maxDeltaAngle) {
+		if (maxDeltaAngle < velocity.angleTo(originalVelocity)) {
+			var test = velocity.clone().applyAxisAngle(zAxis, originalVelocity.angleTo(new THREE.Vector3(1, 0, 0)));
+			var modifier = (test.y < 0) ? -1 : 1;
+
+			velocity.copy(originalVelocity).applyAxisAngle(zAxis, modifier * maxDeltaAngle);
+		}
+	}
+
+	function assignGridPos() {
+		// clear current positions
+
+		for (var i = 0; i < grid.length; i++) {
+			var col = grid[i];
+			for (var j = 0; j < col.length; j++) {
+				col[j] = [];
+			};
+		};
+
+		for (var i = 0; i < guys.length; i++) {
+			var guy = guys[i];
+			var mesh = guy.mesh;
+			guy.gridPos.x = Math.floor((mesh.position.x + worldSize.width) / gridSize.width);
+			guy.gridPos.y = Math.floor((mesh.position.y + worldSize.height) / gridSize.height);
+
+			grid[guy.gridPos.x][guy.gridPos.y].push(guys[i]);
+
+			// switch(guy.gridPos.x % 2) {
+			// 	case 0:
+			// 		switch(guy.gridPos.y % 2) {
+			// 			case 0:
+			// 			mesh.material = material1;
+			// 			break;
+
+			// 			default:
+			// 			mesh.material = material2;
+			// 		}
+			// 	break;
+
+			// 	default:
+			// 		switch(guy.gridPos.y % 2) {
+			// 			case 0:
+			// 			mesh.material = material3;
+			// 			break;
+
+			// 			default:
+			// 			mesh.material = material4;
+			// 		}
+			// }
+		};
 	}
 
 	// returns THREE.Vector3;
