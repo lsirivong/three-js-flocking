@@ -27,16 +27,17 @@
 	var frames = 0;
 
 	var config = {
-		 spriteWidth : 5
-		,spriteHeight : 10
+		 autoPlay : false
+		,spriteWidth : 12
+		,spriteHeight : 20
 		,spriteCount : 400
-		,mergeDistance : 120
+		,mergeDistance : 60
 		,repelDistance : 12
 		,wallRepelDistance : 300
 		,wallRepelScale : 0.25
 		,minSpeed : 3
 		,maxSpeed : 4
-		,maxDeltaAngle : 90 * Math.PI / 180
+		,maxDeltaAngle : 3 * Math.PI / 180
 		,color: 0x000000
 		,leaderColor: 0xf50000
 		// ,leaderColor: 0xf5ec0c // yellow
@@ -109,7 +110,8 @@
 			grid.push(column);
 		};
 
-		for (var i = 0; i < config.spriteCount; i++) {
+		for (var i = config.spriteCount - 1; i >= 0; i--) {
+		// for (var i = 0; i < config.spriteCount; i++) {
 			velocity = getInitialVelocity();
 			var isFollower = i % 50 !== 0;
 			mesh = new THREE.Mesh( geometry, isFollower ? material : leaderMaterial );
@@ -134,32 +136,6 @@
 				,isFollower: isFollower
 			});
 
-
-			// switch(gridPos.x % 2) {
-			// 	case 0:
-			// 		switch(gridPos.y % 2) {
-			// 			case 0:
-			// 			mesh.material = material1;
-			// 			break;
-
-			// 			default:
-			// 			mesh.material = material2;
-			// 		}
-			// 	break;
-
-			// 	default:
-			// 		switch(gridPos.y % 2) {
-			// 			case 0:
-			// 			mesh.material = material3;
-			// 			break;
-
-			// 			default:
-			// 			mesh.material = material4;
-			// 		}
-			// }
-
-
-
 			grid[gridPos.x][gridPos.y].push(guys[guys.length - 1]);
 			mesh.rotation.z = (new THREE.Vector3(1, 0, 0)).angleTo(velocity) * (velocity.y < 0 ? -1 : 1) ;
 
@@ -175,6 +151,10 @@
 		document.body.appendChild( renderer.domElement );
 
 		window.onkeyup = onkeyupHandler;
+
+		if (!config.autoPlay) {
+			stopped = true;
+		}
 	}
 
 	function animate() {
@@ -246,23 +226,22 @@
 											lgHeadMesh.position.y = otherGuy.mesh.position.y;
 											neighborLines.push(lgHeadMesh);
 										};
+										
+										if (guy.drawNeighborLines) {
+											var lg = new THREE.Geometry();
+											lg.vertices.push(mesh.position);
+											lg.vertices.push(otherGuy.mesh.position);
+											neighborLines.push(new THREE.Line(lg, lm));
+
+											lgHeadMesh = new THREE.Mesh(lgHead, lineHeadMaterial);
+											lgHeadMesh.position.x = otherGuy.mesh.position.x;
+											lgHeadMesh.position.y = otherGuy.mesh.position.y;
+											neighborLines.push(lgHeadMesh);
+
+											otherGuy.mesh.material = material;
+										}
 									}
 								}
-
-
-								if (guy.drawNeighborLines) {
-									var lg = new THREE.Geometry();
-									lg.vertices.push(mesh.position);
-									lg.vertices.push(otherGuy.mesh.position);
-									neighborLines.push(new THREE.Line(lg, lm));
-
-									lgHeadMesh = new THREE.Mesh(lgHead, lineHeadMaterial);
-									lgHeadMesh.position.x = otherGuy.mesh.position.x;
-									lgHeadMesh.position.y = otherGuy.mesh.position.y;
-									neighborLines.push(lgHeadMesh);
-
-									otherGuy.mesh.material = material;
-								};
 							}
 						}
 					}
@@ -354,55 +333,6 @@
 
 			mesh.rotation.z = (new THREE.Vector3(1, 0, 0)).angleTo(guy.velocity)  * (guy.velocity.y < 0 ? -1 : 1);
 
-
-			// // update grid position (if necessary)
-			// var oldGridPos = {x: guy.gridPos.x, y: guy.gridPos.y};
-			// guy.gridPos.x = Math.floor((guy.mesh.position.x + worldSize.width) / gridSize.width);
-			// guy.gridPos.y = Math.floor((guy.mesh.position.y + worldSize.height) / gridSize.height);
-
-			// if (oldGridPos.x != guy.gridPos.x || oldGridPos.y != guy.gridPos.y) {
-			// 	// find it
-			// 	var gridCell = grid[oldGridPos.x][oldGridPos.y];
-			// 	var indexOf = -1;
-			// 	for (var k = 0; k < gridCell.length; k++) {
-			// 		if (gridCell[k].id === guy.id) {
-			// 			indexOf = k;
-			// 		}
-			// 	};
-
-			// 	// remove old ref
-			// 	if (0 <= indexOf) {
-			// 		gridCell.splice(indexOf, 1);
-			// 	}
-
-			// 	// add to new spot
-			// 	grid[guy.gridPos.x][guy.gridPos.y].push(guy);
-			// };
-
-
-			// switch(guy.gridPos.x % 2) {
-			// 	case 0:
-			// 		switch(guy.gridPos.y % 2) {
-			// 			case 0:
-			// 			mesh.material = material1;
-			// 			break;
-
-			// 			default:
-			// 			mesh.material = material2;
-			// 		}
-			// 	break;
-
-			// 	default:
-			// 		switch(guy.gridPos.y % 2) {
-			// 			case 0:
-			// 			mesh.material = material3;
-			// 			break;
-
-			// 			default:
-			// 			mesh.material = material4;
-			// 		}
-			// }
-
 			guy.neighborBlock.position.x = guy.mesh.position.x;
 			guy.neighborBlock.position.y = guy.mesh.position.y;
 		};
@@ -444,29 +374,6 @@
 			guy.gridPos.y = Math.floor((mesh.position.y + worldSize.height) / gridSize.height);
 
 			grid[guy.gridPos.x][guy.gridPos.y].push(guys[i]);
-
-			// switch(guy.gridPos.x % 2) {
-			// 	case 0:
-			// 		switch(guy.gridPos.y % 2) {
-			// 			case 0:
-			// 			mesh.material = material1;
-			// 			break;
-
-			// 			default:
-			// 			mesh.material = material2;
-			// 		}
-			// 	break;
-
-			// 	default:
-			// 		switch(guy.gridPos.y % 2) {
-			// 			case 0:
-			// 			mesh.material = material3;
-			// 			break;
-
-			// 			default:
-			// 			mesh.material = material4;
-			// 		}
-			// }
 		};
 	}
 
